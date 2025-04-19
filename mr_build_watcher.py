@@ -5,59 +5,97 @@ import json
 import os
 from plyer import notification
 import argparse
+from markdown2 import markdown
 
 
-# Load or initialize state
 def load_state(state_file):
     if os.path.exists(state_file):
         with open(state_file, "r") as f:
-            return json.load(f)
+            try:
+                return dict(json.load(f))
+            except json.JSONDecodeError:
+                pass
     return {}
 
 
 def save_state(state, state_file):
     with open(state_file, "w") as f:
-        json.dump(state, f)
+        json.dump(state, f, indent=4, sort_keys=True)
 
 
-# Notify
+def get_first_link_text(text_markdown):
+    import xml.etree.ElementTree as ET
+
+    try:
+        parsed_body = markdown(text_markdown)
+        parsed_body = ET.fromstring(f"<root>{parsed_body}</root>")
+        link_tag = parsed_body.find(".//a")
+        if link_tag is not None:
+            return link_tag.text
+    except ET.ParseError as e:
+        print(f"Error parsing XML: {e}")
+        return text_markdown
+
+
 def notify_user(title, message):
-    print(f"[Notification] {title}: {message}")
     try:
         notification.notify(title=title, message=message, timeout=10)
     except Exception as e:
         print("Desktop notification failed:", e)
 
 
+def process_jenkins_comment(mr_full, note, skip_rebuild):
+    print(f"|{mr_full.iid}|: {note.body}")
+    notify_user(
+        f"MR {mr_full.iid}",
+        f"{get_first_link_text(note.body)}",
+    )
+
+    if not skip_rebuild and "Build failed" in note.body:
+        mr_full.notes.create({"body": "#ci rebuild"})
+
+
 # Main watcher logic
-def check_comments(gl: gitlab.Gitlab, state):
+def check_comments(gl, state):
     user = gl.user
     assigned_mrs = gl.mergerequests.list(assignee_id=user.id, state="opened", all=True)
 
     for mr in assigned_mrs:
         project = gl.projects.get(mr.project_id)
         mr_full = project.mergerequests.get(mr.iid)
+
         notes = mr_full.notes.list(order_by="created_at", sort="asc", all=True)
 
-        last_seen = state.get(str(mr.id), "")
+        mr_state = state.get(str(mr.iid), {})
+        last_seen = mr_state.get("last_seen", "")
+        last_note = mr_state.get("last_note", "")
+        skip_rebuild = mr_state.get("skip_rebuild", True)
         new_last_seen = last_seen
 
         for note in notes:
             created_at = note.created_at
-            # if created_at > last_seen and note.author["id"] != user.id:
-            if created_at > last_seen:
-                notify_user(
-                    f"New comment in MR !{mr.iid}",
-                    f"{note.author['name']} said: {note.body[:100]}",
-                )
-                if created_at > new_last_seen:
-                    new_last_seen = created_at
+            note_author = note.author["name"]
 
-        state[str(mr.id)] = new_last_seen
+            if "Jenkins" in note_author:
+                last_note = note.body
+
+                if created_at > last_seen:
+                    if created_at > new_last_seen:
+                        new_last_seen = created_at
+                        process_jenkins_comment(mr_full, note, skip_rebuild)
+
+        state[str(mr.iid)] = {
+            "active_title": mr.title,
+            "last_seen": new_last_seen,
+            "web_url": mr.web_url,
+            "last_note:": last_note,
+            "skip_rebuild": skip_rebuild,
+        }
 
 
 if __name__ == "__main__":
     state_file = None
+    state = None
 
     try:
         parser = argparse.ArgumentParser(description="GitLab MR Comment Watcher")
@@ -97,7 +135,10 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Watcher stopped.")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        import traceback
+
+        print(f"An error occurred: {e}\n")
+        traceback.print_exc()
     finally:
         if state_file:
             save_state(state, state_file)
