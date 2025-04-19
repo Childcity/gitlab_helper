@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "windows": {
+        "options": {
+            "shell": {
+                "executable": "powershell.exe",
+                "args": [
+                    "-NoProfile",
+                    "-Command"
+                ]
+            },
+            "env": {
+                "ANSICON": "true",
+                "ANSICON_DEF": "true",
+                "TERM": "xterm-256color"
+            }
+        }
+    },
+    "tasks": [
+        {
+            "label": "Run Python with argument",
+            "type": "shell",
+            "command": "powershell.exe",
+            "args": [
+                "-NoProfile",
+                "-Command",
+                "& { . .venv\\Scripts\\Activate.ps1; python.exe \"${workspaceFolder}/mr_build_watcher.py\" --private-token=glpat-; }"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
