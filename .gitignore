@@ -1,2 +1,3 @@
 comment_watcher_state.json
 .venv/*
+.vscode/tasks.json
