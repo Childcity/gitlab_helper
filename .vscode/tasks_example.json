@@ -1,0 +1,38 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run mr_build_watcher",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": true
+            },
+            "windows": {
+                "command": "powershell.exe",
+                "args": [
+                    "-NoProfile",
+                    "-Command",
+                    "& { . .venv\\Scripts\\Activate.ps1; python.exe \"${workspaceFolder}/src/mr_build_watcher.py\" --private-token=glpat-***** --state-file=\"${workspaceFolder}/src/comment_watcher_state.json\"; }"
+                ],
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "env": {
+                    "ANSICON": "true",
+                    "ANSICON_DEF": "true",
+                    "TERM": "xterm-256color"
+                }
+            },
+            "problemMatcher": []
+        }
+    ]
+}
