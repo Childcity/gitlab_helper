@@ -69,7 +69,7 @@ def check_comments(gl, state):
         mr_state = state.get(str(mr.iid), {})
         last_seen = mr_state.get("last_seen", "")
         last_note = mr_state.get("last_note", "")
-        skip_rebuild = mr_state.get("skip_rebuild", True)
+        skip_rebuild = mr_state.get("skip_rebuild", False)
         new_last_seen = last_seen
 
         for note in notes:
