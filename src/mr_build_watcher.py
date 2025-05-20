@@ -55,6 +55,9 @@ def process_jenkins_comment(mr_full, note, skip_rebuild):
         s in note.body for s in ["Build failed", "Build aborted"]
     ):
         mr_full.notes.create({"body": "#ci rebuild"})
+        return True
+
+    return False
 
 
 # Main watcher logic
@@ -84,7 +87,9 @@ def check_comments(gl, state):
                 if created_at > last_seen:
                     if created_at > new_last_seen:
                         new_last_seen = created_at
-                        process_jenkins_comment(mr_full, note, skip_rebuild)
+                        if process_jenkins_comment(mr_full, note, skip_rebuild):
+                            # Rebuild requests has been sent
+                            break
 
         state[str(mr.iid)] = {
             "active_title": mr.title,
