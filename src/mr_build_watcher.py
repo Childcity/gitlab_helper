@@ -51,7 +51,9 @@ def process_jenkins_comment(mr_full, note, skip_rebuild):
         f"{get_first_link_text(note.body)}",
     )
 
-    if not skip_rebuild and "Build failed" in note.body:
+    if not skip_rebuild and any(
+        s in note.body for s in ["Build failed", "Build aborted"]
+    ):
         mr_full.notes.create({"body": "#ci rebuild"})
 
 
